@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebRTC 大文件传输</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>WebRTC 大文件传输</h1>
+      <p>手动复制 SDP · 分块哈希 · 流式落盘 · 断点续传</p>
+    </div>
+    <div id="connectionBadge" class="badge offline">未连接</div>
+  </header>
+
+  <main class="layout">
+    <section class="card span-2">
+      <div class="card-head">
+        <h2>1. 选择角色并交换 SDP</h2>
+        <div class="segmented">
+          <button type="button" data-role="offerer">设备 A / 发起方</button>
+          <button type="button" data-role="answerer">设备 B / 应答方</button>
+        </div>
+      </div>
+
+      <div class="signaling-grid">
+        <div>
+          <label>本端 SDP（复制给对方）</label>
+          <textarea id="localSdp" readonly placeholder="点击下方按钮后会生成 SDP"></textarea>
+          <div class="button-row">
+            <button type="button" id="createOffer">创建 Offer</button>
+            <button type="button" id="createAnswer" hidden>生成 Answer</button>
+            <button type="button" id="copyLocal">复制</button>
+            <button type="button" id="downloadSdp">下载</button>
+          </div>
+        </div>
+        <div>
+          <label>对端 SDP（从对方粘贴）</label>
+          <textarea id="remoteSdp" placeholder="粘贴对方 Offer 或 Answer"></textarea>
+          <div class="button-row">
+            <button type="button" id="acceptOffer">接收 Offer</button>
+            <button type="button" id="applyAnswer" hidden>应用 Answer</button>
+            <button type="button" id="pasteRemote">粘贴</button>
+            <button type="button" id="clearSdp">清空</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="recovery-row">
+        <button type="button" class="secondary" id="iceRestart">ICE 重启：生成新 Offer</button>
+        <button type="button" class="secondary" id="newChannel">断开并建立全新连接</button>
+        <span id="roleHint">先选择一台设备作为发起方。</span>
+      </div>
+
+      <div class="diagnostics">
+        <div><span>ICE</span><strong id="iceState">—</strong></div>
+        <div><span>Peer</span><strong id="peerState">—</strong></div>
+        <div><span>Gathering</span><strong id="gatheringState">—</strong></div>
+        <div><span>DataChannel</span><strong id="channelState">—</strong></div>
+        <div><span>候选</span><strong id="candidateSummary">—</strong></div>
+      </div>
+      <p id="iceHint" class="hint">同一局域网通常使用 host；没有公共 IP 候选时请配置 TURN。</p>
+    </section>
+
+    <section class="card span-2">
+      <div class="card-head">
+        <h2>2. ICE 服务器（可选）</h2>
+        <button type="button" class="secondary" id="saveNetwork">保存配置</button>
+      </div>
+      <div class="network-grid">
+        <div>
+          <label>STUN URLs，每行一个</label>
+          <textarea id="stunUrls" placeholder="stun:stun.l.google.com:19302"></textarea>
+        </div>
+        <div>
+          <label>TURN URLs，每行一个</label>
+          <textarea id="turnUrls" placeholder="turns:turn.example.com:443?transport=tcp"></textarea>
+        </div>
+        <div class="field-stack">
+          <label>TURN 用户名</label>
+          <input id="turnUsername" autocomplete="off">
+          <label>TURN 密码</label>
+          <input id="turnPassword" type="password" autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>3A. 发送文件</h2>
+        <button type="button" class="secondary" id="clearSent">清除已完成</button>
+      </div>
+      <input type="file" id="fileInput" multiple>
+      <div class="summary" id="sendSummary">选择一个或多个文件后自动排队。</div>
+      <div id="senderList" class="file-list empty">尚未选择文件</div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>3B. 接收文件</h2>
+        <button type="button" id="chooseDirectory">选择接收目录</button>
+      </div>
+      <div class="summary" id="receiveSummary">接收端必须先选择可写目录。</div>
+      <div id="receiverList" class="file-list empty">等待发送</div>
+    </section>
+
+    <section class="card span-2">
+      <div class="card-head">
+        <h2>事件日志</h2>
+        <button type="button" class="secondary" id="clearLog">清空日志</button>
+      </div>
+      <div id="log" class="log"></div>
+    </section>
+  </main>
+
+  <script src="js/sha256.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/idb.js"></script>
+  <script src="js/hash-client.js"></script>
+  <script src="js/connection.js"></script>
+  <script src="js/sender.js"></script>
+  <script src="js/receiver.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
