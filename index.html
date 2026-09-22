@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebRTC 大文件手动信令传输</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">WebRTC DataChannel · File API · Web Worker · Web Crypto</p>
+        <h1>手动 SDP 大文件传输</h1>
+        <p class="subtitle">分块流式发送、OPFS 断点落盘、逐块哈希与整文件 SHA-256 校验。</p>
+      </div>
+      <div class="connection-pill" id="connectionPill">未连接</div>
+    </header>
+
+    <section class="card signaling-card">
+      <div class="section-title">
+        <h2>1. 建立连接</h2>
+        <p>两台设备选择不同角色，按顺序复制粘贴完整 SDP。配置 TURN 可提高跨 NAT 成功率。</p>
+      </div>
+
+      <div class="role-tabs" role="tablist">
+        <button type="button" class="role-tab active" data-role="host" id="hostRoleTab">我是发起方</button>
+        <button type="button" class="role-tab" data-role="guest" id="guestRoleTab">我是接收方</button>
+      </div>
+
+      <div class="ice-config-row">
+        <label for="iceServers">ICE Servers（JSON 数组，可选）</label>
+        <textarea id="iceServers" rows="3" spellcheck="false">[{"urls":"stun:stun.cloudflare.com:3478"}]</textarea>
+        <label class="inline-check"><input type="checkbox" id="relayMode"> 仅使用 TURN 中继（用于直连/STUN 失败降级；双方生成新 SDP 时都需勾选）</label>
+      </div>
+
+      <div class="signaling-grid">
+        <div class="signal-panel">
+          <div class="panel-heading">
+            <h3>本机 SDP</h3>
+            <div class="button-row">
+              <button type="button" id="createOfferBtn" class="primary">发起方：创建 Offer</button>
+              <button type="button" id="copyLocalSdpBtn">复制</button>
+            </div>
+          </div>
+          <textarea id="localSdp" readonly placeholder="点击“创建 Offer”后，把这里的 SDP 复制到另一台设备"></textarea>
+        </div>
+
+        <div class="signal-panel">
+          <div class="panel-heading">
+            <h3>对方 SDP</h3>
+            <div class="button-row">
+              <button type="button" id="createAnswerBtn">接收方：生成 Answer</button>
+              <button type="button" id="pasteRemoteSdpBtn">从剪贴板粘贴</button>
+            </div>
+          </div>
+          <textarea id="remoteSdp" placeholder="发起方粘贴 Answer；接收方先粘贴 Offer，再点击“生成 Answer”"></textarea>
+        </div>
+      </div>
+
+      <div class="signal-panel final-step">
+        <div class="panel-heading">
+          <h3>完成握手</h3>
+          <div class="button-row">
+            <button type="button" id="acceptAnswerBtn" class="primary">发起方：应用 Answer</button>
+            <button type="button" id="restartIceBtn" disabled>ICE 失败后重启</button>
+            <button type="button" id="relayFallbackBtn" disabled>降级为 TURN 中继</button>
+            <button type="button" id="newConnectionBtn">断开并新建连接</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-alert" id="signalingStatus" role="status">等待选择角色并创建信令。</div>
+    </section>
+
+    <section class="card transfer-card">
+      <div class="section-title">
+        <h2>2. 文件队列</h2>
+        <p>文件按队列顺序传输。接收文件保存在浏览器 OPFS 临时空间，校验完成后可保存到本地。</p>
+      </div>
+
+      <div class="drop-zone" id="dropZone" tabindex="0">
+        <input id="fileInput" type="file" multiple hidden>
+        <strong>拖入文件或点击选择</strong>
+        <span>发送端不会一次性读入整个文件；接收端按块写入 OPFS，避免 1GB 文件内存溢出。</span>
+      </div>
+
+      <div class="queue-toolbar">
+        <label>
+          分块大小
+          <select id="chunkSizeSelect">
+            <option value="16384">16 KiB（最保守）</option>
+            <option value="32768" selected>32 KiB（推荐，兼容 SCTP 限制）</option>
+            <option value="61440">60 KiB（高性能，仍低于 64 KiB 消息上限）</option>
+          </select>
+        </label>
+        <button type="button" id="sendQueueBtn" class="primary" disabled>连接后发送队列</button>
+        <button type="button" id="pauseQueueBtn" disabled>暂停</button>
+        <button type="button" id="clearDoneBtn">清理已完成记录</button>
+        <span class="storage-info" id="storageInfo"></span>
+      </div>
+
+      <div class="queue-list" id="fileQueue" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <template id="fileRowTemplate">
+    <article class="file-row">
+      <div class="file-main">
+        <div class="file-heading">
+          <span class="file-name"></span>
+          <span class="file-size"></span>
+        </div>
+        <div class="progress-track"><div class="progress-bar"></div></div>
+        <div class="file-meta">
+          <span class="file-state"></span>
+          <span class="file-progress-text"></span>
+          <span class="file-speed"></span>
+          <span class="file-buffer"></span>
+        </div>
+        <div class="file-hash" aria-label="哈希状态"></div>
+      </div>
+      <div class="file-actions"></div>
+    </article>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
